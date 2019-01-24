@@ -1,0 +1,117 @@
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <fstream>
+using namespace std;
+class server
+{
+	public:
+         int port;
+	 char msg[1500];
+	 string newmsg;
+	 int msgread=0;
+	 int msgwrit=0;
+          
+	 int creatsoc;
+	 int bindsock;
+	 int clinvar;
+	
+	   void getport(int p)
+	   {
+		port = p;
+	   }
+           
+	   void connectsoc()
+           {
+                  sockaddr_in resesoc;
+                  resesoc.sin_family = AF_INET;
+                  resesoc.sin_addr.s_addr = htonl(INADDR_ANY);
+                  resesoc.sin_port = htons(port);
+ 
+         	  //creating socket
+		  creatsoc = socket(AF_INET, SOCK_STREAM,0);
+	          if(creatsoc  < 0)
+		  {
+                     cout<<"unable to create socket!!!"<<endl;
+		     exit(0);
+		  }
+		  bindsock = bind(creatsoc, (struct sockaddr*)&resesoc ,sizeof(resesoc));
+	          if(bindsock < 0)
+		  {
+		      cout<<"unable to bind socket!!!"<<endl;
+		      exit(0);
+		  }
+	   
+	          cout<<"socket connected and binded..."<<endl;
+      	          listen(creatsoc,5);
+
+		  sockaddr_in  reclisock;
+                  socklen_t  lensock = sizeof(reclisock);
+        
+                  clinvar = accept(creatsoc, (struct sockaddr*)&reclisock, &lensock);     
+	          //accepting client socket
+                  if(clinvar < 0)
+		  {   
+		      cout<<"unable to connect to client!!"<<endl;
+		      exit(1);
+		  }
+
+           }
+
+           void sendmsg()
+           {
+              while(true)
+              {
+                      memset(&msg, 0, sizeof(msg));
+                      msgread += recv(clinvar, (char*)&msg, sizeof(msg), 0);
+                      if(!(strcmp(msg,"exit")))
+                      {
+                              cout<<"client quit!!!"<<endl;
+                              break;
+                      }
+                      cout << "Client message: " << msg << endl;
+                      getline(cin, newmsg);
+                      memset(&msg, 0, sizeof(msg));
+                      strcpy(msg, newmsg.c_str());
+                      if(newmsg == "exit")
+                      {
+                         send(clinvar, (char*)&msg, strlen(msg), 0);
+                         break;
+                      }
+                      msgwrit += send(clinvar, (char*)&msg, strlen(msg),0);
+              }
+	   close(creatsoc);
+           close(clinvar);
+	   }
+	   
+
+          void display()
+	  {
+		  cout<<"-----------------------------------------"<<endl;
+		  cout<<"msg written :"<<msgwrit<<"bytes"<<endl;
+		  cout<<"msg read    :"<<msgread<<"bytes"<<endl;
+          }
+
+};
+int main(int argc, char *argv[])
+{
+    if(argc != 2)
+      cout<<"invalid input!!!"<<endl;
+    server sr;
+    sr.getport(atoi(argv[1]));
+    sr.connectsoc();
+    sr.sendmsg();
+    sr.display();
+}
