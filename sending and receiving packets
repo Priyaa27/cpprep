@@ -1,0 +1,176 @@
+SERVER :
+
+#include<stdio.h>
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <fstream>
+
+using namespace std;
+
+class server 
+{
+     public :
+	     struct message
+	     {
+		     int size;
+		     char msg[50];
+	     }m2;
+
+	      int port;
+              int msgrec;
+              int socdes;
+              int bindsock;
+              int accsock;
+              char buffer[1000];
+	       void connectsoc(int p)
+               {
+                 port = p;
+                 sockaddr_in servSoc;
+                 servSoc.sin_family = AF_INET;
+                 servSoc.sin_addr.s_addr = htonl(INADDR_ANY);
+                 servSoc.sin_port = htons(port);
+
+                 //creating socket descriptor
+                 socdes = socket(AF_INET,SOCK_STREAM,0);
+                 if(socdes < 0)
+                 {
+                         cout<<"unable to create socket.."<<endl;
+                         exit(0);
+                 }
+
+                 bindsock = bind(socdes, (struct sockaddr*)&servSoc,sizeof(servSoc));
+
+                 if(bindsock < 0)
+                 {
+                         cout<<"unable to bind socket.."<<endl;
+                         exit(0);
+                 }
+
+                 cout<<"socket connected and binded."<<endl;
+                 listen(socdes,5);
+
+                 sockaddr_in newSock;
+                 socklen_t lensock = sizeof(newSock);
+
+                 accsock = accept(socdes,(struct sockaddr*)&newSock,&lensock);
+                 if(accsock < 0)
+                 {
+                         cout<<"unable to accept the client."<<endl;
+                         exit(1);
+                 }
+                 
+                 while(true)
+		 {
+
+                         recv(accsock,(char*)&buffer,sizeof(buffer),0);
+        	         memcpy(&m2,buffer,sizeof(m2));       
+                         cout<<m2.size<<endl;
+         	         cout<<m2.msg<<endl;
+		 }
+                 close(accsock);
+		 close(socdes);
+	       }
+
+
+};
+
+
+int main(int argc, char *argv[])
+{
+        if(argc != 2)
+                cout<<"invalid input..."<<endl;
+
+        server s;
+        s.connectsoc(atoi(argv[1]));
+        return 0;
+}
+
+CLIENT :
+
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <fstream>
+using namespace std;
+
+class client
+{
+
+
+        public :
+                struct message
+		{
+			int size;
+			char msg[50];
+		}m1;
+
+		int port;
+                const char *serIp;
+                int clientSd;
+                int conn;
+                char buffer[1000];
+        	 void connectsoc(const char*sip,int p)
+                 {
+                         struct hostent* host = gethostbyname(sip);
+                         port =p;
+
+                         sockaddr_in saddr;
+                         saddr.sin_family = AF_INET;
+                         saddr.sin_addr.s_addr =inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
+                         saddr.sin_port = htons(port);
+
+                         clientSd = socket(AF_INET,SOCK_STREAM,0);
+                         conn = connect(clientSd,(sockaddr*)&saddr,sizeof(saddr));
+                         if(conn <0)
+                         {
+                                 cout<<"socket not connected.."<<endl;
+                         }
+                         cout<<"conncected to server.."<<endl;
+			 while(true)
+			 {
+         			 cout<<"enter the message:";
+	         		 cin>>m1.msg;
+		        	 m1.size = strlen(m1.msg);                        
+			         memcpy(buffer,(char*)&m1, sizeof(m1));
+                                 cout<<"buffer size:"<<sizeof(m1)<<endl;                  
+                                 send(clientSd,(char*)&buffer,sizeof(buffer),0);
+			 }
+                         cout<<"sent"<<endl;
+			 close(clientSd);
+	          }
+};
+
+int main(int argc, char *argv[])
+{
+         if(argc != 3)
+           cout<<"invalid input!!!"<<endl;
+
+        client c;
+        c.connectsoc(argv[1],atoi(argv[2]));
+        return 0;
+}
