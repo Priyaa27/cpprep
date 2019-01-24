@@ -1,3 +1,5 @@
+SERVER :
+
 #include <iostream>
 #include <string>
 #include <stdio.h>
@@ -114,4 +116,103 @@ int main(int argc, char *argv[])
     sr.connectsoc();
     sr.sendmsg();
     sr.display();
+}
+
+
+
+CLIENT :
+
+#include <iostream>
+#include <string>
+#include <stdio.h>
+#include <sys/types.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <netdb.h>
+#include <sys/uio.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <fcntl.h>
+#include <fstream>
+using namespace std;
+class client
+{
+
+public :
+    int port;
+    const char *serIp;
+    char msg[1500];
+    string newmsg;
+    int clientSd;
+    int msgread=0;
+    int msgwrit=0;
+
+    void connectsoc(const char *sip,int p)
+    {
+           struct hostent* host = gethostbyname(sip);
+           port =p;
+
+         sockaddr_in saddr;
+         saddr.sin_family = AF_INET;
+         saddr.sin_addr.s_addr =inet_addr(inet_ntoa(*(struct in_addr*)*host->h_addr_list));
+         saddr.sin_port = htons(port);
+
+        clientSd = socket(AF_INET,SOCK_STREAM,0);
+        int conn=connect(clientSd,(sockaddr*) &saddr,sizeof(saddr));
+        if(conn<0)
+        {
+           cout<<"socket not connected!!!"<<endl;
+         }
+        cout<<"connected to server.."<<endl;
+    }
+
+    void sendmsg()
+    {
+        while(true)
+        {
+            getline(cin,newmsg);
+            memset(&msg,0,sizeof(msg));
+            strcpy(msg,newmsg.c_str());
+            if(newmsg == "exit")
+            {
+               send(clientSd, (char*)&msg, strlen(msg), 0);
+               break;
+            }
+            msgwrit +=send(clientSd, (char*)&msg, strlen(msg), 0);
+            memset(&msg, 0, sizeof(msg));
+            msgread += recv(clientSd, (char*)&msg, sizeof(msg), 0);
+            if(!strcmp(msg, "exit"))
+            {
+               cout << "Server has stopped" <<endl;
+                break;
+            }
+            cout << "Server Message : " << msg <<endl;
+        }
+        close(clientSd);
+
+    }
+
+    void display()
+    {
+        cout<<"msg Written :"<<msgwrit<<"bytes"<<endl;
+        cout<<"msg read    :"<<msgread<<"bytes"<<endl;
+    }
+
+};
+
+
+int main(int argc, char *argv[])
+{
+         if(argc != 3)
+           cout<<"invalid input!!!"<<endl;
+
+        client c;
+        c.connectsoc(argv[1],atoi(argv[2]));
+        c.sendmsg();
+	c.display();
+        return 0;
 }
